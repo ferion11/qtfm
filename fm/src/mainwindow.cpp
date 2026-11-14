@@ -1051,9 +1051,6 @@ void MainWindow::pasteClipboard() {
   QString newPath;
   QStringList cutList;
 
-  if (curIndex.isDir()) { newPath = curIndex.filePath(); }
-  else { newPath = pathEdit->itemText(0); }
-
   // Check list of files that are to be cut
   QFile tempFile(Common::getTempClipboardFile());
   if (tempFile.exists()) {
@@ -1065,6 +1062,19 @@ void MainWindow::pasteClipboard() {
 
   const QMimeData *data = QApplication::clipboard()->mimeData();
   if (!data || !data->hasUrls()) { return; }
+
+  // Paste into the selected folder, or into the current one. A folder that
+  // is itself in the clipboard (still selected after Copy) is not a target:
+  // its copy goes next to it, named after the "Copy of" pattern.
+  newPath = pathEdit->itemText(0);
+  if (curIndex.isDir()) {
+    const QString selected = QDir::cleanPath(curIndex.absoluteFilePath());
+    bool inClipboard = false;
+    foreach (QUrl url, data->urls()) {
+      if (QDir::cleanPath(url.toLocalFile()) == selected) { inClipboard = true; break; }
+    }
+    if (!inClipboard) { newPath = curIndex.filePath(); }
+  }
 
   // The cut list is only valid while the clipboard still holds the files
   // that were cut. If something else was copied meanwhile (in another
