@@ -698,6 +698,15 @@ void MainWindow::treeSelectionChanged(QModelIndex current, QModelIndex previous)
 
     if (!bookmarksList->hasFocus()) { bookmarksList->clearSelection(); }
 
+    // The selection belongs to the folder being left: clear it before the
+    // views change folder. Changing the root makes the selection model emit
+    // selectionChanged, and listSelectionChanged() would make the selected
+    // item of the old folder (of another tab, when switching tabs) the
+    // current one, used below as the tab path and later as paste target.
+    listSelectionModel->blockSignals(1);
+    listSelectionModel->clear();
+    listSelectionModel->blockSignals(0);
+
     if (modelList->setRootPath(name.filePath())) { modelView->invalidate(); }
 
     //////
@@ -707,10 +716,10 @@ void MainWindow::treeSelectionChanged(QModelIndex current, QModelIndex previous)
     else { list->setRootIndex(baseIndex); }
 
     if(tabs->count()) {
-        QString tabText = curIndex.fileName();
+        QString tabText = name.fileName();
         if (tabText.isEmpty()) { tabText = "/"; }
         tabs->setTabText(tabs->currentIndex(),tabText);
-        tabs->setTabData(tabs->currentIndex(),curIndex.filePath());
+        tabs->setTabData(tabs->currentIndex(),name.filePath());
         tabs->setIcon(tabs->currentIndex());
     }
 
