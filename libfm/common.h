@@ -25,6 +25,8 @@
 #include <QObject>
 #include <QString>
 #include <QVariant>
+#include <QList>
+#include <QUrl>
 
 #ifndef APP
 #define APP "qtfm"
@@ -106,6 +108,7 @@ public:
     static QString hasThumbnail(const QString &filename);
     static QString getTempPath();
     static QString getTempClipboardFile();
+    static QString dragDropText(const QList<QUrl> &files, const QString &destination);
 };
 
 #endif // COMMON_H

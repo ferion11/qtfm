@@ -132,20 +132,20 @@ bool bookmarkmodel::dropMimeData(const QMimeData * data,
         }
     }
 
-    // If drag mode is unknown then ask what to do
-    if (mode == Common::DM_UNKNOWN) {
+    // If drag mode is unknown then ask what to do; not when dropping on the
+    // empty area, which only adds bookmarks
+    if (mode == Common::DM_UNKNOWN && parent.column() != -1) {
         QMessageBox box;
         box.setWindowTitle(tr("Select file action"));
         box.setWindowIcon(QIcon::fromTheme("qtfm",
                                            QIcon(":/images/qtfm.png")));
         box.setIconPixmap(QIcon::fromTheme("dialog-information").pixmap(QSize(32, 32)));
-        box.setText(QString("<h3>%1</h3>")
-                    .arg(tr("What do you want to do?")));
+        QString text = Common::dragDropText(files, parentPath);
         if (!extraDialogText.isEmpty()) {
-            box.setText(QString("%1<p>%2</p>")
-            .arg(box.text())
-            .arg(extraDialogText));
+            text += QString("<p>%1</p>").arg(extraDialogText);
         }
+        text += QString("<p>%1</p>").arg(tr("What do you want to do?"));
+        box.setText(text);
         QAbstractButton *move = box.addButton(tr("Move here"),
                                               QMessageBox::ActionRole);
         QAbstractButton *copy = box.addButton(tr("Copy here"),

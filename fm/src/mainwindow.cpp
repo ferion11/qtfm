@@ -1134,10 +1134,10 @@ void MainWindow::dragLauncher(const QMimeData *data, const QString &newPath,
     box.setWindowTitle(tr("Select file action"));
     box.setWindowIcon(QIcon::fromTheme("qtfm", QIcon(":/images/qtfm.png")));
     box.setIconPixmap(QIcon::fromTheme("dialog-information").pixmap(QSize(32, 32)));
-    box.setText(tr("<h3>What do you want to do?</h3>"));
-    if (!extraText.isEmpty()) {
-        box.setText(QString("%1<p>%2</p>").arg(box.text()).arg(extraText));
-    }
+    QString text = Common::dragDropText(files, newPath);
+    if (!extraText.isEmpty()) { text += QString("<p>%1</p>").arg(extraText); }
+    text += QString("<p>%1</p>").arg(tr("What do you want to do?"));
+    box.setText(text);
     QAbstractButton *move = box.addButton(tr("Move here"), QMessageBox::ActionRole);
     QAbstractButton *copy = box.addButton(tr("Copy here"), QMessageBox::ActionRole);
     QAbstractButton *link = box.addButton(tr("Link here"), QMessageBox::ActionRole);

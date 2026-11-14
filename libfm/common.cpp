@@ -23,6 +23,8 @@
 #include <QCryptographicHash>
 #include <QUrl>
 #include <QStandardPaths>
+#include <QCoreApplication>
+#include <QFileInfo>
 
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__APPLE__)
 #include <sys/mount.h>
@@ -701,4 +703,56 @@ QString Common::getTempClipboardFile()
     const QString path = getTempPath();
     if (path.isEmpty()) { return QString(); }
     return QString("%1/clipboard.tmp").arg(path);
+}
+
+/**
+ * @brief Describes a drag and drop for the "Select file action" dialog:
+ * what is dropped (name, or number of items and their names), where it
+ * comes from and where it goes (rich text)
+ * @param files dropped files
+ * @param destination folder where they are dropped
+ */
+QString Common::dragDropText(const QList<QUrl> &files, const QString &destination)
+{
+    auto tr = [](const char *text) { return QCoreApplication::translate("Common", text); };
+    auto folderName = [](const QString &path) {
+        const QString name = QFileInfo(path).fileName();
+        return name.isEmpty() ? QString("/") : name;
+    };
+
+    const QString dest = QDir::cleanPath(destination);
+    QStringList names;
+    QString from;
+    foreach (QUrl url, files) {
+        const QFileInfo info(QDir::cleanPath(url.toLocalFile()));
+        names << info.fileName();
+        if (from.isEmpty()) { from = info.absolutePath(); }
+    }
+
+    QString text;
+    if (names.size() == 1) {
+        text = tr("Dragging <b>%1</b> to <b>%2</b>")
+                .arg(names.first().toHtmlEscaped(), folderName(dest).toHtmlEscaped());
+    } else {
+        text = tr("Dragging <b>%1 items</b> to <b>%2</b>")
+                .arg(names.size()).arg(folderName(dest).toHtmlEscaped());
+        // the first names, so it is clear what is being dragged
+        const int shown = 5;
+        QStringList list;
+        for (int i = 0; i < names.size() && i < shown; ++i) {
+            list << names.at(i).toHtmlEscaped();
+        }
+        QString items = list.join(", ");
+        if (names.size() > shown) {
+            items += " " + tr("and %1 more").arg(names.size() - shown);
+        }
+        text += QString("<br><small>%1</small>").arg(items);
+    }
+    text = QString("<h3>%1</h3>").arg(text);
+    text += QString("<p><table>"
+                    "<tr><td>%1&nbsp;</td><td>%2</td></tr>"
+                    "<tr><td>%3&nbsp;</td><td>%4</td></tr>"
+                    "</table></p>")
+            .arg(tr("From:"), from.toHtmlEscaped(), tr("To:"), dest.toHtmlEscaped());
+    return text;
 }
