@@ -1159,7 +1159,9 @@ QMap<int, CopyRequest> QtFileCopierPrivate::copyDirectoryContents(const QString 
     fid.setFile(r.dest);
     QDir sDir(fis.filePath());
     QDir destDir(fid.filePath());
-    QFileInfoList dirList = sDir.entryInfoList(QDir::Dirs);
+    // hidden subfolders (.git, .config...) are part of the folder too
+    QFileInfoList dirList = sDir.entryInfoList(QDir::Dirs | QDir::Hidden |
+                    QDir::System | QDir::NoDotAndDotDot);
     QListIterator<QFileInfo> itDir(dirList);
     while (itDir.hasNext()) {
         QFileInfo newfis = itDir.next();
