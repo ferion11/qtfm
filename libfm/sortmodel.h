@@ -20,7 +20,8 @@ protected:
 class viewsSortProxyModel : public QSortFilterProxyModel
 {
 public:
-    // show the ".." entry of the current folder (detail view only)
+    // show the ".." entry of the current folder (shown by default, in the
+    // detail, list and icon views)
     void setShowDotDot(bool show);
     // show only the items whose name contains text, or matches it when it
     // is a wildcard pattern (*.pdf); folders too when filterDirs is true.
@@ -31,7 +32,8 @@ protected:
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const;
     bool lessThan(const QModelIndex &left, const QModelIndex &right) const;
 private:
-    bool showDotDot = false;
+    bool showDotDot = true;
+
     bool nameFilterActive = false;
     bool nameFilterDirs = false;
     QRegularExpression nameFilter;

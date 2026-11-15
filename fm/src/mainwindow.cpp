@@ -889,6 +889,12 @@ void MainWindow::listItemClicked(QModelIndex current)
 
     Qt::KeyboardModifiers mods = QApplication::keyboardModifiers();
     if (mods == Qt::ControlModifier || mods == Qt::ShiftModifier) { return; }
+    // "..": go to the parent folder (it has no index in the folder tree)
+    if (modelList->isDotDot(modelView->mapToSource(current))) {
+        goUpDir();
+        return;
+    }
+
     if (modelList->isDir(modelView->mapToSource(current))) {
         tree->setCurrentIndex(modelTree->mapFromSource(modelView->mapToSource(current)));
     }

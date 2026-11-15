@@ -425,8 +425,10 @@ bool myModel::setRootPath(const QString& path)
 //---------------------------------------------------------------------------------
 /**
  * @brief Moves the ".." entry (go to the parent folder) to the given folder:
- * only the current folder has one. The views decide whether to show it
- * (only the detail view does, see viewsSortProxyModel::setShowDotDot()).
+ * only the current folder has one. The file views (detail, list and icons)
+ * show it, see viewsSortProxyModel::setShowDotDot(); the folder tree does
+ * not.
+
  * @param folder the current folder
  */
 void myModel::setDotDot(myModelItem *folder)
