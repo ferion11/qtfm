@@ -591,7 +591,20 @@ struct RenameNode : public ChainNode {
             QFileInfo fis(r.source);
             QDir dir = fis.dir();
             if (!(r.copyFlags & QtFileCopier::FollowLinks) || (!r.dir && !fis.isSymLink())) {
-                if (dir.rename(fis.fileName(), r.dest)) {
+#if defined(Q_OS_WIN32)
+                const bool renamed = dir.rename(fis.fileName(), r.dest);
+#else
+                // QDir::rename() never replaces an existing destination. For
+                // files rename(2) is used instead: it replaces the destination
+                // (overwriting was accepted in OverwriteNode) in one step,
+                // instead of falling back to a slow copy and delete. Folders
+                // keep the fallback, which merges them.
+                const bool renamed = r.dir ?
+                        dir.rename(fis.fileName(), r.dest) :
+                        ::rename(QFile::encodeName(r.source).constData(),
+                                 QFile::encodeName(r.dest).constData()) == 0;
+#endif
+                if (renamed) {
                     QFileInfo fid(r.dest);
                     if (r.dir)
                         while (!r.childrenQueue.isEmpty())
@@ -699,8 +712,15 @@ struct CopyFileNode : public ChainNode {
             setError(QtFileCopier::CannotOpenSourceFile); // cannot open source file
             return false;
         }
+#if !defined(Q_OS_WIN32)
+        // Overwriting a symbolic link replaces the link: opening it would
+        // write into the file it points to.
+        if (QFileInfo(r.dest).isSymLink())
+            ::unlink(QFile::encodeName(r.dest).constData());
+#endif
         if (!destFile.open(QIODevice::WriteOnly)) {
             bool done = false;
+
             if (r.copyFlags & QtFileCopier::Force) {
                 QFileInfo fid(r.dest);
                 QDir dir = fid.dir();
