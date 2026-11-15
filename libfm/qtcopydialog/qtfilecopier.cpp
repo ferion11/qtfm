@@ -521,9 +521,21 @@ struct MakeLinksNode : public ChainNode {
 #if defined(Q_OS_WIN32)
             QString linkName = fis.absoluteFilePath();
 #else
-            QString linkName = dir.relativeFilePath(fis.filePath());
+            // The relative target is resolved from the real folder of the
+            // link: when the destination folder is reached through a symbolic
+            // link, a target relative to that path would be broken.
+            const QString realDir = dir.canonicalPath();
+            if (!realDir.isEmpty())
+                dir = QDir(realDir);
+            QString linkName = dir.relativeFilePath(fis.absoluteFilePath());
 #endif
+            // An existing destination means that overwriting was accepted
+            // (OverwriteNode); a link cannot be created over it. A real
+            // folder is never removed.
+            if ((fid.exists() || fid.isSymLink()) && (fid.isSymLink() || !fid.isDir()))
+                QFile::remove(r.dest);
             QFile sourceFile(linkName);
+
             if (sourceFile.link(r.dest))
                 return true;
             setError(QtFileCopier::CannotCreateSymLink);
