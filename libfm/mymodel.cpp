@@ -250,7 +250,7 @@ qint64 myModel::size(const QModelIndex &index)
 {
     if (!index.isValid()) { return 0; }
     myModelItem *item = static_cast<myModelItem*>(index.internalPointer());
-    if(item) { return item->fileInfo().size(); }
+    if(item) { return Common::fileSize(item->fileInfo()); }
     return 0;
 }
 
@@ -1242,7 +1242,7 @@ QVariant myModel::data(const QModelIndex & index, int role) const {
         break;
       case 1 :
         data = item->fileInfo().isDir() ? "" : Common::formatSize(
-               item->fileInfo().size());
+               Common::fileSize(item->fileInfo()));
         break;
       case 2 :
         if (item->mMimeType.isNull()) {
@@ -1309,7 +1309,8 @@ QVariant myModel::data(const QModelIndex & index, int role) const {
     QStringList tip;
     tip << item->fileName();
     if (info.isSymLink()) { tip << tr("Link to: %1").arg(info.symLinkTarget()); }
-    if (!info.isDir()) { tip << tr("Size: %1").arg(Common::formatSize(info.size())); }
+    if (!info.isDir()) { tip << tr("Size: %1").arg(Common::formatSize(Common::fileSize(info))); }
+
     const QString type = index.sibling(index.row(), 2).data(Qt::DisplayRole).toString();
     if (!type.isEmpty()) { tip << tr("Type: %1").arg(type); }
     tip << tr("Modified: %1").arg(QLocale::system().toString(info.lastModified(),

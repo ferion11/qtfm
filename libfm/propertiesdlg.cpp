@@ -280,14 +280,22 @@ void PropertiesDialog::folderProperties(QStringList paths)
 //---------------------------------------------------------------------------
 void PropertiesDialog::recurseProperties(QString path)
 {
-    QDirIterator it(path,QDir::AllEntries | QDir::System | QDir::NoDotAndDotDot | QDir::NoSymLinks | QDir::Hidden, QDirIterator::Subdirectories);
+    // A symbolic link counts as the link itself: its target is neither
+    // entered (a link to a folder) nor measured (a link to a file)
+    if(QFileInfo(path).isSymLink())
+    {
+        totalSize += Common::fileSize(QFileInfo(path));
+        return;
+    }
+
+    QDirIterator it(path,QDir::AllEntries | QDir::System | QDir::NoDotAndDotDot | QDir::Hidden, QDirIterator::Subdirectories);
     if(it.hasNext())
         while (it.hasNext())
         {
             if(this->result()) return;      //user cancelled
 
             it.next();
-            if(it.fileInfo().isDir())
+            if(it.fileInfo().isDir() && !it.fileInfo().isSymLink())
             {
                 folders++;
                 if(folders % BOOKMARK_PATH == 0) emit updateSignal();
@@ -295,11 +303,12 @@ void PropertiesDialog::recurseProperties(QString path)
             else
             {
                 files++;
-                totalSize += it.fileInfo().size();
+                totalSize += Common::fileSize(it.fileInfo());
             }
         }
     else
-        totalSize += QFileInfo(path).size();
+        totalSize += Common::fileSize(QFileInfo(path));
+
 }
 
 //---------------------------------------------------------------------------

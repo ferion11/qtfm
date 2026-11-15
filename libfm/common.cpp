@@ -756,3 +756,21 @@ QString Common::dragDropText(const QList<QUrl> &files, const QString &destinatio
             .arg(tr("From:"), from.toHtmlEscaped(), tr("To:"), dest.toHtmlEscaped());
     return text;
 }
+
+/**
+ * @brief Size of a file. For a symbolic link it is the size of the link
+ * itself (the length of its target path), not the size of the file it
+ * points to, which QFileInfo::size() returns: the target is not a copy and
+ * takes no additional space.
+ */
+qint64 Common::fileSize(const QFileInfo &info)
+{
+    if (info.isSymLink()) {
+        struct stat st;
+        if (::lstat(QFile::encodeName(info.absoluteFilePath()).constData(), &st) == 0) {
+            return st.st_size;
+        }
+        return 0;
+    }
+    return info.size();
+}
