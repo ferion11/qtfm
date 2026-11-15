@@ -360,7 +360,8 @@ void QtCopyThread::retry()
 void QtCopyThread::resetOverwrite()
 {
     QMutexLocker l(&mutex);
-    overwriteAllRequest = true;
+    overwriteAllRequest = false;
+
 }
 
 void QtCopyThread::resetSkip()
