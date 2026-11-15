@@ -1251,6 +1251,15 @@ void MainWindow::pasteLauncher(const QList<QUrl> &files,
         }
     }
     const QString destDir = QDir::cleanPath(QFileInfo(newPath).absoluteFilePath());
+    // The folder of an item is compared with the destination by its real
+    // path: the same folder can be reached through a symbolic link.
+    const QString destReal = QFileInfo(newPath).canonicalFilePath();
+    auto inDestination = [&destDir, &destReal](const QFileInfo &item) {
+        const QString folder = QDir::cleanPath(item.absolutePath());
+        if (folder == destDir) { return true; }
+        const QString real = QFileInfo(folder).canonicalFilePath();
+        return !real.isEmpty() && real == destReal;
+    };
 
     QStringList _files, _dirs;
     if (cutList.size()>0) { // move
@@ -1259,7 +1268,7 @@ void MainWindow::pasteLauncher(const QList<QUrl> &files,
             // folders, files and symlinks (also broken ones, moved as the
             // link itself); other special files are skipped
             if (!info.isDir() && !info.isFile() && !info.isSymLink()) { continue; }
-            if (cutList.at(i) == (newPath + "/" + info.fileName())) { continue; }
+            if (inDestination(info)) { continue; } // already there
             if (info.isDir()) { _dirs << info.absoluteFilePath(); }
             else { _files << info.absoluteFilePath(); }
         }
@@ -1286,7 +1295,8 @@ void MainWindow::pasteLauncher(const QList<QUrl> &files,
             // folders, files and symlinks (also broken ones, copied as the
             // link itself); other special files (FIFOs would block) are skipped
             if (!info.isDir() && !info.isFile() && !info.isSymLink()) { continue; }
-            if (QDir::cleanPath(info.absolutePath()) == destDir) {
+            if (inDestination(info)) {
+
                 // never copy onto itself, the copy gets a "Copy (x) of" name
                 _sameFolder << info.absoluteFilePath();
             }
