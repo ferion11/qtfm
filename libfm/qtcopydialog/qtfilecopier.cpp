@@ -739,7 +739,11 @@ struct CopyFileNode : public ChainNode {
             }
         }
         qint64 progress = 0;
-        char block[4096];
+        // 256 KiB blocks: much faster than small ones on big files, and
+        // still short enough for cancel and progress to be responsive
+        QByteArray buffer(256 * 1024, Qt::Uninitialized);
+        char *block = buffer.data();
+        const qint64 blockSize = buffer.size();
         bool done = false;
         while (1) {
             if (t->isCanceled(id)) {
@@ -747,7 +751,7 @@ struct CopyFileNode : public ChainNode {
                 done = true;
                 break;
             }
-            qint64 in = sourceFile.read(block, 4096);
+            qint64 in = sourceFile.read(block, blockSize);
             if (in == 0) {
                 t->emitProgress(id, progress);
                 break;
@@ -764,9 +768,15 @@ struct CopyFileNode : public ChainNode {
             if (t->isProgressRequest())
                 t->emitProgress(id, progress);
         }
+        // The last blocks are only written here: a failure (disk full) must
+        // not pass as a complete copy, a move would then remove the source.
+        if (error() == QtFileCopier::NoError
+                && (!destFile.flush() || destFile.error() != QFileDevice::NoError))
+            setError(QtFileCopier::CannotWriteDestinationFile);
         destFile.close();
         sourceFile.close();
         if (error() != QtFileCopier::NoError)
+
             destFile.remove();
         else {
             destFile.setPermissions(sourceFile.permissions());
