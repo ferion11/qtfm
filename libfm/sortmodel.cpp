@@ -26,6 +26,15 @@ void viewsSortProxyModel::setShowDotDot(bool show)
 }
 
 //---------------------------------------------------------------------------------
+void viewsSortProxyModel::setDotDotRoot(const QString &rootPath)
+{
+    const QString root = rootPath.isEmpty() ? QString() : QDir::cleanPath(rootPath);
+    if (root == dotDotRoot) { return; }
+    dotDotRoot = root;
+    invalidateFilter();
+}
+
+//---------------------------------------------------------------------------------
 void viewsSortProxyModel::setNameFilter(const QString &text, bool filterDirs,
                                         const QString &rootPath)
 {
@@ -54,7 +63,12 @@ bool viewsSortProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &sou
     if (fileModel == nullptr) { return true; }
 
     // "..": shown on request, also when hidden files are not shown
-    if (fileModel->isDotDot(index0)) { return showDotDot; }
+    if (fileModel->isDotDot(index0)) {
+        if (!showDotDot) { return false; }
+        return dotDotRoot.isEmpty() ||
+                QDir::cleanPath(fileModel->filePath(sourceParent)) == dotDotRoot;
+    }
+
 
     // name filter (folders only when requested), only for the items inside
     // the current folder: the model is a tree from "/" and the views show

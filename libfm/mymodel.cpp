@@ -435,16 +435,30 @@ void myModel::setDotDot(myModelItem *folder)
 {
     const QString path = folder ? folder->absoluteFilePath() : QString();
 
-    // remove it from the previous folder
+    // remove it from the previous folder, unless another view shows it
     if (!dotDotFolder.isEmpty() && dotDotFolder != path) {
-        myModelItem *old = rootItem->matchPath(dotDotFolder.split(SEPARATOR));
-        if (old) { removeDotDot(old); }
+        if (!shownFolders.contains(dotDotFolder)) {
+            myModelItem *old = rootItem->matchPath(dotDotFolder.split(SEPARATOR));
+            if (old) { removeDotDot(old); }
+        }
         dotDotFolder.clear();
     }
 
     // "/" has no parent folder
     if (!folder || folder == rootItem || path.isEmpty() || path == "/") { return; }
     dotDotFolder = path;
+    addDotDot(folder);
+}
+
+//---------------------------------------------------------------------------------
+/**
+ * @brief Adds the ".." entry to a folder that does not have it yet
+ */
+void myModel::addDotDot(myModelItem *folder)
+{
+    if (!folder || folder == rootItem) { return; }
+    const QString path = folder->absoluteFilePath();
+    if (path.isEmpty() || path == "/") { return; }
 
     foreach (myModelItem *child, folder->children()) {
         if (child->dotDot) { return; } // already there
@@ -459,7 +473,51 @@ void myModel::setDotDot(myModelItem *folder)
 }
 
 //---------------------------------------------------------------------------------
+/**
+ * @brief Sets the folders shown by the file views besides the current one
+ * (see setRootPath()). With a split view each view shows a folder: all of
+ * them have a ".." entry, not only the current folder.
+ */
+void myModel::setShownFolders(const QStringList &folders)
+{
+    QStringList cleaned;
+    foreach (QString folder, folders) {
+        folder = QDir::cleanPath(folder);
+        if (!folder.isEmpty() && !cleaned.contains(folder)) { cleaned.append(folder); }
+    }
+
+    // folders that are no longer shown lose their ".."
+    foreach (QString old, shownFolders) {
+        if (cleaned.contains(old) || old == dotDotFolder) { continue; }
+        myModelItem *item = rootItem->matchPath(old.split(SEPARATOR));
+        if (item) { removeDotDot(item); }
+    }
+    shownFolders = cleaned;
+
+    foreach (QString folder, shownFolders) {
+        if (folder == "/") { continue; }
+        myModelItem *item = rootItem->matchPath(folder.split(SEPARATOR));
+        if (item && item->walked) { addDotDot(item); }
+    }
+}
+
+//---------------------------------------------------------------------------------
+/**
+ * @brief Loads and watches a folder that is shown without being the current
+ * one (a view of a split view, after the model was reset). No rows are
+ * announced: to be called before a view shows the folder, like setRootPath().
+ */
+void myModel::loadFolder(const QString &path)
+{
+    myModelItem *item = rootItem->matchPath(path.split(SEPARATOR));
+    if (item == nullptr) { return; }
+    if (!item->watched) { addWatcher(item); }
+    if (!item->walked) { populateItem(item); }
+}
+
+//---------------------------------------------------------------------------------
 void myModel::removeDotDot(myModelItem *folder)
+
 {
     foreach (myModelItem *child, folder->children()) {
         if (!child->dotDot) { continue; }

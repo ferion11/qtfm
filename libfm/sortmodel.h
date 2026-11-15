@@ -23,6 +23,10 @@ public:
     // show the ".." entry of the current folder (shown by default, in the
     // detail, list and icon views)
     void setShowDotDot(bool show);
+    // folder this proxy shows as the root of its views: only its ".." is
+    // shown (another view can show a subfolder, which has a ".." of its
+    // own). Empty: any ".." is shown.
+    void setDotDotRoot(const QString &rootPath);
     // show only the items whose name contains text, or matches it when it
     // is a wildcard pattern (*.pdf); folders too when filterDirs is true.
     // Only the items inside rootPath (the current folder) are filtered.
@@ -33,6 +37,8 @@ protected:
     bool lessThan(const QModelIndex &left, const QModelIndex &right) const;
 private:
     bool showDotDot = true;
+    QString dotDotRoot;
+
 
     bool nameFilterActive = false;
     bool nameFilterDirs = false;

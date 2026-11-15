@@ -57,6 +57,10 @@ public:
   bool hasChildren(const QModelIndex &parent = QModelIndex()) const;
   bool setRootPath(const QString& path);
   bool isDotDot(const QModelIndex &index) const;
+  // Folders shown by the file views besides the current one (split view):
+  // they keep their ".." entry and are loaded and watched when needed.
+  void setShownFolders(const QStringList &folders);
+  void loadFolder(const QString &path);
   QString getRootPath();
   void setRealMimeTypes(bool realMimeTypes);
   void setFileColors(bool enabled);
@@ -129,9 +133,13 @@ private:
   int lastEventID;
   QString lastEventFilename;
 
-  // folder that holds the ".." entry (the current folder)
+  // folder that holds the ".." entry (the current folder), and the folders
+  // of the other file views, which have one too
   QString dotDotFolder;
+  QStringList shownFolders;
   void setDotDot(myModelItem *folder);
+  void addDotDot(myModelItem *folder);
+
   void removeDotDot(myModelItem *folder);
 };
 
