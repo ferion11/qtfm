@@ -708,7 +708,14 @@ struct CopyFileNode : public ChainNode {
         }
         QFile sourceFile(r.source);
         QFile destFile(r.dest);
+        // FIFOs, sockets and devices cannot be copied as files (opening a
+        // FIFO would block forever)
+        if (!QFileInfo(r.source).isFile()) {
+            setError(QtFileCopier::CannotOpenSourceFile);
+            return false;
+        }
         if (!sourceFile.open(QIODevice::ReadOnly)) {
+
             setError(QtFileCopier::CannotOpenSourceFile); // cannot open source file
             return false;
         }
@@ -1250,7 +1257,9 @@ QMap<int, CopyRequest> QtFileCopierPrivate::copyDirectoryContents(const QString 
     QListIterator<QFileInfo> itFile(fileList);
     while (itFile.hasNext()) {
         QFileInfo newfis = itFile.next();
-        if (!newfis.isDir() && !newfis.isSymLink()) {
+        // only regular files: QDir::System also lists FIFOs, sockets and
+        // devices, and opening a FIFO to read it would block forever
+        if (!newfis.isDir() && !newfis.isSymLink() && newfis.isFile()) {
             newfis.makeAbsolute();
             CopyRequest r = prepareRequest(false, newfis.filePath(),
                         destDir.filePath(newfis.fileName()), flags, move, false);
