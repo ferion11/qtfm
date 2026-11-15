@@ -305,6 +305,8 @@ private:
     QAction *lockLayoutAct;
     //QAction *escapeAct;
     QAction *refreshAct;
+    QAction *refreshButtonAct; // the Refresh button in the toolbar
+
     QAction *zoomInAct;
     QAction *zoomOutAct;
     QAction *focusAddressAct;

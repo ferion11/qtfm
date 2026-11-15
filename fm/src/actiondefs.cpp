@@ -23,6 +23,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QToolBar>
+#include <QToolButton>
 #include <QStatusBar>
 #include <QApplication>
 #include <QLineEdit>
@@ -347,6 +348,7 @@ void MainWindow::createActions() {
   actionList->append(escapeAct);*/
 
   refreshAct = new QAction(tr("Refresh"), this);
+  refreshAct->setStatusTip(tr("Reload the current folder"));
   connect(refreshAct, SIGNAL(triggered()), this, SLOT(refresh()));
   refreshAct->setIcon(actionIcons->at(19));
   actionList->append(refreshAct);
@@ -658,6 +660,18 @@ void MainWindow::createToolBars() {
   navToolBar->addAction(forwardAct);
   navToolBar->addAction(upAct);
   navToolBar->addAction(homeAct);
+  // Refresh: a button of its own, so hiding it (settings) does not disable
+  // the action itself (View menu and shortcut)
+  QToolButton *refreshButton = new QToolButton(navToolBar);
+  refreshButton->setDefaultAction(refreshAct);
+  refreshButton->setAutoRaise(true);
+  refreshButton->setFocusPolicy(Qt::NoFocus);
+  refreshButton->setIconSize(navToolBar->iconSize());
+  refreshButton->setToolButtonStyle(navToolBar->toolButtonStyle());
+  connect(navToolBar, &QToolBar::iconSizeChanged, refreshButton, &QToolButton::setIconSize);
+  connect(navToolBar, &QToolBar::toolButtonStyleChanged, refreshButton, &QToolButton::setToolButtonStyle);
+  refreshButtonAct = navToolBar->addWidget(refreshButton);
+
 
   addressToolBar = addToolBar(tr("Address"));
   addressToolBar->setObjectName("Address");
