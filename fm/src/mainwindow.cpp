@@ -147,70 +147,35 @@ MainWindow::MainWindow()
     dockBookmarks->setWidget(bookmarksList);
     addDockWidget(Qt::LeftDockWidgetArea, dockBookmarks);
 
-    // Central area: filter bar on top, then the views and the tabs
+    // Central area: the file panes (one, or several with a split view).
+    // Each pane has its own filter bar, file views and tabs, see createPane().
     QWidget *central = new QWidget(this);
     QVBoxLayout *centralLayout = new QVBoxLayout(central);
     centralLayout->setSpacing(0);
     centralLayout->setContentsMargins(0,0,0,0);
 
-    filterBar = new QWidget(central);
-    QHBoxLayout *filterLayout = new QHBoxLayout(filterBar);
-    filterLayout->setContentsMargins(4,2,4,2);
-    filterLayout->setSpacing(6);
-    filterEdit = new QLineEdit(filterBar);
-    filterEdit->setClearButtonEnabled(true);
-    filterEdit->setPlaceholderText(tr("Name or pattern, e.g. *.pdf"));
-    filterDirsCheck = new QCheckBox(tr("Filter folders too"), filterBar);
-    QToolButton *filterClose = new QToolButton(filterBar);
-    filterClose->setIcon(QIcon::fromTheme("window-close", QIcon::fromTheme("dialog-close")));
-    filterClose->setToolTip(tr("Close the filter (Esc)"));
-    filterClose->setAutoRaise(true);
-    filterLayout->addWidget(new QLabel(tr("Filter:"), filterBar));
-    filterLayout->addWidget(filterEdit, 1);
-    filterLayout->addWidget(filterDirsCheck);
-    filterLayout->addWidget(filterClose);
-    filterBar->hide();
-    centralLayout->addWidget(filterBar);
-
-    connect(filterEdit, &QLineEdit::textChanged, this, &MainWindow::applyFilter);
-    connect(filterDirsCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        settings->setValue("filterFolders", checked);
-        applyFilter();
-    });
-    connect(filterClose, &QToolButton::clicked, this, &MainWindow::closeFilterBar);
-    QShortcut *filterEscape = new QShortcut(QKeySequence(Qt::Key_Escape), filterBar);
-    filterEscape->setContext(Qt::WidgetWithChildrenShortcut);
-    connect(filterEscape, &QShortcut::activated, this, &MainWindow::closeFilterBar);
-
-    QWidget *main = new QWidget(central);
-    mainLayout = new QVBoxLayout(main);
-    mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins(0,0,0,0);
-
-    stackWidget = new QStackedWidget(this);
-    QWidget *page = new QWidget(this);
-    QHBoxLayout *hl1 = new QHBoxLayout(page);
-    hl1->setSpacing(0);
-    hl1->setContentsMargins(0,0,0,0);
-    list = new DfmQListView(page);
-    hl1->addWidget(list);
-    stackWidget->addWidget(page);
-
-    QWidget *page2 = new QWidget(this);
-    hl1 = new QHBoxLayout(page2);
-    hl1->setSpacing(0);
-    hl1->setContentsMargins(0,0,0,0);
-    detailTree = new DfmQTreeView(page2);
-    hl1->addWidget(detailTree);
-    stackWidget->addWidget(page2);
-
-    tabs = new tabBar(modelList->folderIcons);
-
-    mainLayout->addWidget(stackWidget);
-    mainLayout->addWidget(tabs);
-
-    centralLayout->addWidget(main, 1);
+    paneRows = new QSplitter(Qt::Vertical, central);
+    paneRows->setChildrenCollapsible(false);
+    paneTop = new QSplitter(Qt::Horizontal);
+    paneTop->setChildrenCollapsible(false);
+    paneBottom = new QSplitter(Qt::Horizontal);
+    paneBottom->setChildrenCollapsible(false);
+    paneRows->addWidget(paneTop);
+    paneRows->addWidget(paneBottom);
+    paneBottom->hide();
+    centralLayout->addWidget(paneRows, 1);
     setCentralWidget(central);
+
+    uiReady = false;
+    switchingPane = false;
+    paneRootsPending = false;
+    singleClickMode = 0;
+    activePane = nullptr;
+    FilePane *firstPane = createPane();
+    panes.append(firstPane);
+    paneTop->addWidget(firstPane->widget);
+    activePane = firstPane;
+    bindPane(firstPane);
 
     modelTree = new mainTreeFilterProxyModel();
     modelTree->setSourceModel(modelList);
@@ -224,24 +189,8 @@ MainWindow::MainWindow()
     tree->hideColumn(3);
     tree->hideColumn(4);
 
-    modelView = new viewsSortProxyModel();
-    modelView->setSourceModel(modelList);
-    modelView->setSortCaseSensitivity(Qt::CaseInsensitive);
-
-    list->setWrapping(true);
-    list->setWordWrap(true);
-    list->setModel(modelView);
     ivdelegate = new IconViewDelegate();
     ildelegate = new IconListDelegate();
-    list->setTextElideMode(Qt::ElideNone);
-    listSelectionModel = list->selectionModel();
-
-    detailTree->setRootIsDecorated(true);
-    detailTree->setItemsExpandable(true);
-    detailTree->setUniformRowHeights(true);
-    detailTree->setAlternatingRowColors(true);
-    detailTree->setModel(modelView);
-    detailTree->setSelectionModel(listSelectionModel);
 
     pathEdit = new QComboBox(this);
     pathEdit->setEditable(true);
@@ -314,19 +263,11 @@ void MainWindow::lateStart() {
   // files are renamed in a dialog (renameDialog), not in place
   tree->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
-  // Configure detail view
-  detailTree->setSelectionMode(QAbstractItemView::ExtendedSelection);
-  detailTree->setDragDropMode(QAbstractItemView::DragDrop);
-  detailTree->setDefaultDropAction(Qt::MoveAction);
-  detailTree->setDropIndicatorShown(true);
-  detailTree->setEditTriggers(QAbstractItemView::NoEditTriggers);
-
-  // Configure list view
-  list->setResizeMode(QListView::Adjust);
-  list->setSelectionMode(QAbstractItemView::ExtendedSelection);
-  list->setSelectionRectVisible(true);
+  // The file views, tabs and filter bars are configured and connected in
+  // createPane(); their signals are handled from now on
+  uiReady = true;
+  singleClickMode = settings->value("singleClick").toInt();
   list->setFocus();
-  list->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
   // Clipboard configuration
   clipboardChanged();
@@ -337,28 +278,6 @@ void MainWindow::lateStart() {
   customComplete->setCompletionMode(QCompleter::UnfilteredPopupCompletion);
   customComplete->setMaxVisibleItems(10);
   pathEdit->setCompleter(customComplete);
-
-  // Tabs configuration
-  tabs->setDrawBase(0);
-  tabs->setExpanding(0);
-
-  // Connect mouse clicks in views
-  if (settings->value("singleClick").toInt() == 1) {
-    connect(list, SIGNAL(clicked(QModelIndex)),
-            this, SLOT(listItemClicked(QModelIndex)));
-    connect(detailTree, SIGNAL(clicked(QModelIndex)),
-            this, SLOT(listItemClicked(QModelIndex)));
-  }
-  if (settings->value("singleClick").toInt() == 2) {
-    connect(list, SIGNAL(clicked(QModelIndex))
-            ,this, SLOT(listDoubleClicked(QModelIndex)));
-    connect(detailTree, SIGNAL(clicked(QModelIndex)),
-            this, SLOT(listDoubleClicked(QModelIndex)));
-  }
-
-  // Connect list view
-  connect(list, SIGNAL(activated(QModelIndex)),
-          this, SLOT(listDoubleClicked(QModelIndex)));
 
   // Connect custom action manager
   connect(customActManager, SIGNAL(actionMapped(QString)),
@@ -385,12 +304,7 @@ void MainWindow::lateStart() {
   // Connect selection
   connect(QApplication::clipboard(), SIGNAL(changed(QClipboard::Mode)),
           this, SLOT(clipboardChanged()));
-  connect(detailTree,SIGNAL(activated(QModelIndex)),
-          this, SLOT(listDoubleClicked(QModelIndex)));
-  connect(listSelectionModel,
-          SIGNAL(selectionChanged(const QItemSelection, const QItemSelection)),
-          this, SLOT(listSelectionChanged(const QItemSelection,
-                                          const QItemSelection)));
+
 
   // Connect bookmark model
   connect(modelBookmarks,
@@ -407,22 +321,18 @@ void MainWindow::lateStart() {
           this,
           SLOT(dragLauncher(const QMimeData *, QString, Common::DragMode)));
 
-  // Connect tabs
-  connect(tabs, SIGNAL(currentChanged(int)), this, SLOT(tabChanged(int)));
-  connect(tabs, SIGNAL(dragDropTab(const QMimeData *, QString, QStringList)),
-          this, SLOT(pasteLauncher(const QMimeData *, QString, QStringList)));
-  connect(list, SIGNAL(pressed(QModelIndex)),
-          this, SLOT(listItemPressed(QModelIndex)));
-  connect(detailTree, SIGNAL(pressed(QModelIndex)),
-          this, SLOT(listItemPressed(QModelIndex)));
-
   connect(modelList, SIGNAL(thumbUpdate(QString)),
           this, SLOT(thumbUpdate(QString)));
 
   qApp->setKeyboardInputInterval(1000);
 
+  // Split view: same number of panes as the last time
+  activePane->configured = true;
+  setSplitCount(settings->value("splitViews", 1).toInt());
+
   // Read custom actions
   QTimer::singleShot(100, customActManager, SLOT(readActions()));
+
 
   // Read defaults
   QTimer::singleShot(100, mimeUtils, SLOT(generateDefaults()));
@@ -499,7 +409,10 @@ void MainWindow::loadSettings(bool wState, bool hState, bool tabState, bool thum
   zoomBook = settings->value("zoomBook", 24).toInt();
   zoomList = settings->value("zoomList", 24).toInt();
   zoomDetail = settings->value("zoomDetail", 32).toInt();
-  detailTree->setIconSize(QSize(zoomDetail, zoomDetail));
+  foreach (FilePane *pane, panes) {
+    pane->detailTree->setIconSize(QSize(zoomDetail, zoomDetail));
+    pane->configured = (pane == activePane); // new zoom: set up when activated
+  }
   tree->setIconSize(QSize(zoomTree, zoomTree));
   bookmarksList->setIconSize(QSize(zoomBook, zoomBook));
 
@@ -514,8 +427,10 @@ void MainWindow::loadSettings(bool wState, bool hState, bool tabState, bool thum
   toggleDetails();
 
   // Restore header of detail tree
-  detailTree->header()->restoreState(settings->value("header").toByteArray());
-  detailTree->setSortingEnabled(1);
+  foreach (FilePane *pane, panes) {
+    pane->detailTree->header()->restoreState(settings->value("header").toByteArray());
+    pane->detailTree->setSortingEnabled(1);
+  }
 
   // Load sorting information and sort
   currentSortColumn = settings->value("sortBy", 0).toInt();
@@ -526,7 +441,7 @@ void MainWindow::loadSettings(bool wState, bool hState, bool tabState, bool thum
     case 3 : setSortColumn(sortDateAct); break;
   }
   setSortOrder(currentSortOrder);
-  modelView->sort(currentSortColumn, currentSortOrder);
+  foreach (FilePane *pane, panes) { pane->model->sort(currentSortColumn, currentSortOrder); }
 
   // Load terminal command
   term = settings->value("term", "xterm").toString();
@@ -561,9 +476,11 @@ void MainWindow::loadSettings(bool wState, bool hState, bool tabState, bool thum
   copyXofTS = settings->value("copyXofTS", COPY_X_TS).toString();
 
   // filter bar: filter folders too?
-  filterDirsCheck->blockSignals(true);
-  filterDirsCheck->setChecked(settings->value("filterFolders", false).toBool());
-  filterDirsCheck->blockSignals(false);
+  foreach (FilePane *pane, panes) {
+    pane->filterDirsCheck->blockSignals(true);
+    pane->filterDirsCheck->setChecked(settings->value("filterFolders", false).toBool());
+    pane->filterDirsCheck->blockSignals(false);
+  }
 }
 
 void MainWindow::firstRunBookmarks(bool isFirstRun)
@@ -705,11 +622,20 @@ void MainWindow::treeSelectionChanged(QModelIndex current, QModelIndex previous)
     // selectionChanged, and listSelectionChanged() would make the selected
     // item of the old folder (of another tab, when switching tabs) the
     // current one, used below as the tab path and later as paste target.
-    listSelectionModel->blockSignals(1);
-    listSelectionModel->clear();
-    listSelectionModel->blockSignals(0);
+    // (not when another pane becomes the active one: it shows the same
+    // folder as before and keeps its selection)
+    if (!switchingPane) {
+        listSelectionModel->blockSignals(1);
+        listSelectionModel->clear();
+        listSelectionModel->blockSignals(0);
+    }
 
     if (modelList->setRootPath(name.filePath())) { modelView->invalidate(); }
+
+    // each pane shows the ".." of its own folder
+    modelView->setDotDotRoot(name.filePath());
+    activePane->path = name.filePath();
+    updateShownFolders();
 
     //////
     QModelIndex baseIndex = modelView->mapFromSource(modelList->index(name.filePath()));
@@ -729,12 +655,13 @@ void MainWindow::treeSelectionChanged(QModelIndex current, QModelIndex previous)
         listSelectionModel->setCurrentIndex(modelView->mapFromSource(backIndex),QItemSelectionModel::ClearAndSelect);
         if (currentView == 2) { detailTree->scrollTo(modelView->mapFromSource(backIndex)); }
         else { list->scrollTo(modelView->mapFromSource(backIndex)); }
-    } else {
+    } else if (!switchingPane) {
         listSelectionModel->blockSignals(1);
         listSelectionModel->clear();
     }
 
     listSelectionModel->blockSignals(0);
+    updatePaneHeaders();
     updateGrid();
     qDebug() << "trigger dirloaded on tree selection changed";
     QTimer::singleShot(30,this,SLOT(dirLoaded()));
@@ -750,40 +677,25 @@ void MainWindow::dirLoaded(bool thumbs)
     }
 
     qDebug() << "dirLoaded triggered, thumbs?" << thumbs;
-    qint64 bytes = 0;
     QModelIndexList items;
-    bool includeHidden = hiddenAct->isChecked();
-
-    for (int x = 0; x < modelList->rowCount(modelList->index(pathEdit->currentText())); ++x) {
-        QModelIndex item = modelList->index(x,0,modelList->index(pathEdit->currentText()));
-        if (modelList->isDotDot(item)) { continue; } // not an item of the folder
-        items.append(item);
-    }
-
-
-    foreach (QModelIndex theItem,items) {
-        if (includeHidden || !modelList->fileInfo(theItem).isHidden()) {
-            bytes = bytes + modelList->size(theItem);
-        } else { items.removeOne(theItem); }
-    }
-
     QString total;
-
-    if (!bytes) { total = ""; }
-    else { total = Common::formatSize(bytes); }
-
-    // free space of the file system of this folder
-    QStorageInfo storage(pathEdit->itemText(0));
-    if (storage.isValid() && storage.isReady()) {
-        const QString freeSpace = tr("%1 free").arg(Common::formatSize(storage.bytesAvailable()));
-        total = total.isEmpty() ? freeSpace : QString("%1, %2").arg(total, freeSpace);
-    }
+    folderTotals(pathEdit->itemText(0), items, total);
 
     folderStatusSize = QString("%1 items   ").arg(items.count());
     folderStatusDate = total;
     statusName->clear();
     statusSize->setText(folderStatusSize);
     statusDate->setText(folderStatusDate);
+
+    // the header of the pane shows the totals too (split view)
+    activePane->statusSize = folderStatusSize;
+    activePane->statusDate = folderStatusDate;
+    updatePaneHeaders();
+
+    // the status bar keeps showing the selection, if there is one
+    if (listSelectionModel->hasSelection()) {
+        listSelectionChanged(QItemSelection(), QItemSelection());
+    }
 
     if (thumbsAct->isChecked() && thumbs) {
         QtConcurrent::run([this, items]() {
@@ -800,6 +712,20 @@ void MainWindow::updateDir()
 
 void MainWindow::handleReloadDir(const QString &path)
 {
+    // a folder shown by a pane that is not the active one: only the totals
+    // in its header change (the model updates its view)
+    bool otherPane = false;
+    foreach (FilePane *pane, panes) {
+        if (pane == activePane || pane->path != path) { continue; }
+        QModelIndexList items;
+        QString total;
+        folderTotals(path, items, total);
+        pane->statusSize = QString("%1 items   ").arg(items.count());
+        pane->statusDate = total;
+        otherPane = true;
+    }
+    if (otherPane) { updatePaneHeaders(); }
+
     // changes in other watched folders must not block the reloads
     if (path != modelList->getRootPath()) { return; }
     if (ignoreReload) {
@@ -941,12 +867,15 @@ int MainWindow::addTab(QString path)
 //---------------------------------------------------------------------------
 void MainWindow::tabsOnTop()
 {
-    if(tabsOnTopAct->isChecked()) {
-        mainLayout->setDirection(QBoxLayout::BottomToTop);
-        tabs->setShape(QTabBar::RoundedNorth);
-    } else {
-        mainLayout->setDirection(QBoxLayout::TopToBottom);
-        tabs->setShape(QTabBar::RoundedSouth);
+    // in every pane
+    foreach (FilePane *pane, panes) {
+        if(tabsOnTopAct->isChecked()) {
+            pane->layout->setDirection(QBoxLayout::BottomToTop);
+            pane->tabs->setShape(QTabBar::RoundedNorth);
+        } else {
+            pane->layout->setDirection(QBoxLayout::TopToBottom);
+            pane->tabs->setShape(QTabBar::RoundedSouth);
+        }
     }
 }
 
@@ -1399,6 +1328,7 @@ void MainWindow::writeSettings() {
   settings->setValue("windowMax", isMaximized());
   settings->setValue("header", detailTree->header()->saveState());
   settings->setValue("realMimeTypes",  modelList->isRealMimeTypes());
+  settings->setValue("splitViews", panes.count());
 
   // Write bookmarks
   writeBookmarks();
@@ -1767,6 +1697,17 @@ QMenu* MainWindow::createOpenWithMenu() {
 
 bool MainWindow::eventFilter(QObject *o, QEvent *e)
 {
+    // Split view: using a pane (mouse or keyboard focus) makes it the
+    // active one, before the event is handled
+    if (panes.count() > 1 && uiReady && !switchingPane
+        && (e->type() == QEvent::MouseButtonPress || e->type() == QEvent::FocusIn
+            || (e->type() == QEvent::Wheel // zoom, not plain scrolling
+                && (static_cast<QWheelEvent*>(e)->modifiers() & Qt::ControlModifier)))) {
+        FilePane *pane = paneOf(o);
+
+        if (pane && pane != activePane) { setActivePane(pane); }
+    }
+
     // Ctrl + mouse wheel over the file list: zoom
     if (e->type() == QEvent::Wheel && (o == list->viewport() || o == detailTree->viewport())) {
         QWheelEvent *we = static_cast<QWheelEvent*>(e);

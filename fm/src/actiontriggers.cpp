@@ -936,7 +936,7 @@ void MainWindow::setSortColumn(QAction *columnAct) {
  */
 void MainWindow::toggleSortBy(QAction *action) {
   setSortColumn(action);
-  modelView->sort(currentSortColumn, currentSortOrder);
+  foreach (FilePane *pane, panes) { pane->model->sort(currentSortColumn, currentSortOrder); }
 }
 //---------------------------------------------------------------------------
 
@@ -965,7 +965,7 @@ void MainWindow::setSortOrder(Qt::SortOrder order) {
 void MainWindow::toggleSortOrder() {
   setSortOrder(currentSortOrder == Qt::AscendingOrder ? Qt::DescendingOrder
                                                       : Qt::AscendingOrder);
-  modelView->sort(currentSortColumn, currentSortOrder);
+  foreach (FilePane *pane, panes) { pane->model->sort(currentSortColumn, currentSortOrder); }
 }
 //---------------------------------------------------------------------------
 
@@ -1013,14 +1013,15 @@ void MainWindow::toggleHidden() {
     if (curIndex.isHidden()) {
       listSelectionModel->clear();
     }
-    modelView->setFilterRegularExpression("no");
+    foreach (FilePane *pane, panes) { pane->model->setFilterRegularExpression("no"); }
     modelTree->setFilterRegularExpression("no");
   } else {
-    modelView->setFilterRegularExpression("");
+    foreach (FilePane *pane, panes) { pane->model->setFilterRegularExpression(""); }
     modelTree->setFilterRegularExpression("");
   }
 
-  modelView->invalidate();
+  foreach (FilePane *pane, panes) { pane->model->invalidate(); }
+
   dirLoaded();
 }
 //---------------------------------------------------------------------------

@@ -65,6 +65,36 @@
 #include "service.h"
 #endif
 
+/**
+ * One of the views of the file area. With a split view there are several:
+ * each one has its own file views, tabs, filter bar and state. The main
+ * window works on the active one (see MainWindow::setActivePane()).
+ */
+struct FilePane {
+    QWidget *widget;            // the whole pane
+    QLabel *header;             // folder and totals, shown with a split view
+    QWidget *filterBar;
+    QLineEdit *filterEdit;
+    QCheckBox *filterDirsCheck;
+    QVBoxLayout *layout;        // file views and tabs
+    QStackedWidget *stack;
+    DfmQListView *list;
+    DfmQTreeView *detailTree;
+    tabBar *tabs;
+    viewsSortProxyModel *model;
+    QItemSelectionModel *selection;
+
+    // state, kept here while the pane is not the active one
+    QString path;               // folder shown
+    QStringList history;        // visited folders, most recent first
+    QStringList forwardHistory;
+    QFileInfo curIndex;
+    int view;                   // 0=list, 1=icons, 2=details
+    QString statusSize;         // totals of the folder
+    QString statusDate;
+    bool configured;            // the views were set up for their view mode
+};
+
 QT_BEGIN_NAMESPACE
 class QAction;
 class QMenu;
@@ -196,6 +226,8 @@ private slots:
     void slowPathEdit();
     void refresh(bool modelRefresh = true, bool loadDir = true);
     void enableReload();
+    void splitViewTriggered(QAction *action);
+    void restorePaneRoots();
 private:
     void createActions();
     void createActionIcons();
@@ -204,6 +236,31 @@ private:
     void writeSettings();
     void recurseFolder(QString path, QString parent, QStringList *);
     QMenu* createOpenWithMenu();
+
+    // split view (panes.cpp)
+    FilePane *createPane();
+    void bindPane(FilePane *pane);
+    void savePaneState(FilePane *pane);
+    void setActivePane(FilePane *pane);
+    FilePane *paneOf(QObject *object) const;
+    void setSplitCount(int count);
+    void arrangePanes();
+    void updatePaneHeaders();
+    void updateShownFolders();
+    void folderTotals(const QString &path, QModelIndexList &items, QString &total);
+
+    QList<FilePane*> panes;
+    FilePane *activePane;
+    QSplitter *paneRows;        // top and bottom rows of panes
+    QSplitter *paneTop;
+    QSplitter *paneBottom;
+    bool uiReady;               // the window is set up: handle view signals
+    bool switchingPane;         // true while another pane becomes the active one
+    bool paneRootsPending;
+    int singleClickMode;
+    QActionGroup *splitActGrp;
+    QAction *splitActs[4];
+
 
     int zoom;
     int zoomTree;

@@ -162,6 +162,7 @@ add_executable(
     fm/src/settingsdialog.cpp
     fm/src/actiondefs.cpp
     fm/src/actiontriggers.cpp
+    fm/src/panes.cpp
     share/${PROJECT_NAME}.qrc
 )
 target_link_libraries(

@@ -25,7 +25,8 @@ SOURCES += \
     src/tabbar.cpp \
     src/settingsdialog.cpp \
     src/actiondefs.cpp \
-    src/actiontriggers.cpp
+    src/actiontriggers.cpp \
+    src/panes.cpp
 
 RESOURCES += $${top_srcdir}/share/$${TARGET}.qrc
 

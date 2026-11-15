@@ -109,7 +109,8 @@ void MainWindow::createActions() {
 
   closeTabAct = new QAction(tr("Close tab"), this);
   closeTabAct->setStatusTip(tr("Middle-click tabs to close"));
-  connect(closeTabAct, SIGNAL(triggered()), tabs, SLOT(closeTab()));
+  // the tabs of the active pane
+  connect(closeTabAct, &QAction::triggered, this, [this]() { tabs->closeTab(); });
   closeTabAct->setIcon(actionIcons->at(25));
   actionList->append(closeTabAct);
 
@@ -347,7 +348,22 @@ void MainWindow::createActions() {
   connect(escapeAct, SIGNAL(triggered()), this, SLOT(refresh()));
   actionList->append(escapeAct);*/
 
+  // Split view: number of panes of the file area
+  splitActGrp = new QActionGroup(this);
+  const QStringList splitNames = QStringList() << tr("Single view") << tr("Split in 2 views")
+                                               << tr("Split in 3 views") << tr("Split in 4 views");
+  for (int i = 0; i < 4; ++i) {
+    splitActs[i] = new QAction(splitNames.at(i), this);
+    splitActs[i]->setCheckable(true);
+    splitActs[i]->setStatusTip(tr("Number of views of the file area, each with its own folder, tabs and filter"));
+    splitActGrp->addAction(splitActs[i]);
+    actionList->append(splitActs[i]);
+  }
+  splitActs[0]->setChecked(true);
+  connect(splitActGrp, SIGNAL(triggered(QAction*)), this, SLOT(splitViewTriggered(QAction*)));
+
   refreshAct = new QAction(tr("Refresh"), this);
+
   refreshAct->setStatusTip(tr("Reload the current folder"));
   connect(refreshAct, SIGNAL(triggered()), this, SLOT(refresh()));
   refreshAct->setIcon(actionIcons->at(19));
@@ -620,6 +636,9 @@ void MainWindow::createMenus() {
   viewMenu->addAction(hiddenAct);
   viewMenu->addAction(filterAct);
   viewMenu->addSeparator();
+  QMenu *splitMenu = new QMenu(tr("Split view"));
+  for (int i = 0; i < 4; ++i) { splitMenu->addAction(splitActs[i]); }
+  viewMenu->addMenu(splitMenu);
   viewMenu->addAction(tabsOnTopAct);
   viewMenu->addAction(thumbsAct);
   viewMenu->addSeparator();
@@ -712,6 +731,12 @@ void MainWindow::zoomInAction()
     }
 
     status->showMessage(QString(tr("Zoom: %1")).arg(zoomLevel));
+    // the other panes: the detail views now, the list and icon views when
+    // the pane becomes the active one (see setActivePane)
+    foreach (FilePane *pane, panes) {
+        pane->detailTree->setIconSize(QSize(zoomDetail,zoomDetail));
+        if (pane != activePane) { pane->configured = false; }
+    }
     updateGrid();
 }
 
@@ -746,6 +771,12 @@ void MainWindow::zoomOutAction()
     }
 
     status->showMessage(QString(tr("Zoom: %1")).arg(zoomLevel));
+    // the other panes: the detail views now, the list and icon views when
+    // the pane becomes the active one (see setActivePane)
+    foreach (FilePane *pane, panes) {
+        pane->detailTree->setIconSize(QSize(zoomDetail,zoomDetail));
+        if (pane != activePane) { pane->configured = false; }
+    }
 }
 
 //---------------------------------------------------------------------------
