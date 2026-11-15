@@ -658,6 +658,28 @@ struct MoveNode : public ChainNode {
     }
 };
 
+// Gives dest the access and modification times of source
+static void copyFileTimes(const QString &source, const QString &dest)
+{
+#if !defined(Q_OS_WIN32)
+    struct stat st;
+    if (::stat(QFile::encodeName(source).constData(), &st) != 0)
+        return;
+    struct timespec times[2];
+#if defined(Q_OS_DARWIN)
+    times[0] = st.st_atimespec;
+    times[1] = st.st_mtimespec;
+#else
+    times[0] = st.st_atim;
+    times[1] = st.st_mtim;
+#endif
+    ::utimensat(AT_FDCWD, QFile::encodeName(dest).constData(), times, 0);
+#else
+    Q_UNUSED(source)
+    Q_UNUSED(dest)
+#endif
+}
+
 struct CopyDirNode : public ChainNode {
     CopyDirNode(ChainNode *nextInChain)
         : ChainNode(nextInChain) {
@@ -672,6 +694,7 @@ struct CopyDirNode : public ChainNode {
             return false;
         }
         QFileInfo fid(r.dest);
+        bool created = false;
         if (!fid.exists()) {
             QDir destDir = fid.dir();
             if (!destDir.exists()) {
@@ -681,6 +704,7 @@ struct CopyDirNode : public ChainNode {
                 setError(QtFileCopier::CannotCreateDestinationDirectory);
                 return false;
             }
+            created = true;
         } else if (fid.isSymLink() || fid.isFile()) {
             setError(QtFileCopier::CannotCreateDestinationDirectory);
             return false;
@@ -689,6 +713,13 @@ struct CopyDirNode : public ChainNode {
         //if (fid.isDir())
         while (!r.childrenQueue.isEmpty())
             thread()->handle(r.childrenQueue.dequeue());
+        // A folder created by the copy gets the permissions and times of
+        // the source; an existing one (merge) keeps its own. Done after the
+        // contents: they change the times, and the source may be read-only.
+        if (created) {
+            QFile::setPermissions(r.dest, fis.permissions());
+            copyFileTimes(r.source, r.dest);
+        }
         if (thread()->isCanceled(currentId()))
             setError(QtFileCopier::Canceled); // canceled
         return true;
@@ -799,7 +830,9 @@ struct CopyFileNode : public ChainNode {
             destFile.remove();
         else {
             destFile.setPermissions(sourceFile.permissions());
+            copyFileTimes(r.source, r.dest);
             done = true;
+
         }
         return done;
     }
