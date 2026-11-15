@@ -61,6 +61,8 @@
 #if !defined(Q_OS_WIN32)
 #include <unistd.h>
 #include <limits.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #endif
 
 struct CopyRequest {
@@ -457,6 +459,28 @@ struct SourceExistsNode : public ChainNode {
     }
 };
 
+// Source and destination can be the same file: a folder reached through a
+// symbolic link, or two hard links. Copying would truncate the source when
+// the destination is opened, and moving would then delete it. There is
+// nothing to do in that case.
+struct SameFileNode : public ChainNode {
+    SameFileNode(ChainNode *nextInChain) : ChainNode(nextInChain) {}
+    bool handle() {
+#if !defined(Q_OS_WIN32)
+        CopyRequest &r = request();
+        struct stat src, dst;
+        if (::lstat(QFile::encodeName(r.source).constData(), &src) == 0
+                && ::lstat(QFile::encodeName(r.dest).constData(), &dst) == 0
+                && src.st_dev == dst.st_dev && src.st_ino == dst.st_ino) {
+            if (r.dir)
+                thread()->lockCancelChildren(currentId());
+            return true;
+        }
+#endif
+        return ChainNode::handle();
+    }
+};
+
 struct OverwriteNode : public ChainNode {
     OverwriteNode(ChainNode *nextInChain, bool overwrite) : ChainNode(nextInChain) {
         o = overwrite;
@@ -828,7 +852,9 @@ void QtCopyThread::handle(int id)
         n = new FollowLinksNode(n);
         n = new MakeLinksNode(n);
         n = new OverwriteNode(n, r.overwrite || overwriteAll);
+        n = new SameFileNode(n);
         n = new SourceExistsNode(n);
+
         n = new CanceledNode(n, r.canceled);
 
         done = n->handle();
