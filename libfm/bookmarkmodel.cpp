@@ -100,6 +100,19 @@ bool bookmarkmodel::dropMimeData(const QMimeData * data,
     QStringList cutList;
     QString parentPath = parent.data(BOOKMARK_PATH).toString();
 
+    // Don't do anything if the files are already in the folder of the
+    // bookmark (a move would do nothing and then be taken for a copy,
+    // creating "Copy of" duplicates). The folders are compared by their
+    // real paths; the folder of a link is where the link is.
+    if (parent.column() != -1 && !files.isEmpty()) {
+        const QString folder = QFileInfo(QFileInfo(files.at(0).toLocalFile()).absolutePath())
+                .canonicalFilePath();
+        if (!folder.isEmpty() && folder == QFileInfo(parentPath).canonicalFilePath()) {
+            return false;
+        }
+    }
+
+
     // Holding ctrl is copy, holding shift is move, holding alt is ask
     Qt::KeyboardModifiers mods = QApplication::keyboardModifiers();
     Common::DragMode mode = Common::getDefaultDragAndDrop();

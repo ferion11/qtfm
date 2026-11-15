@@ -1551,10 +1551,16 @@ bool myModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
   if (files.isEmpty()) { return false; }
   //QStringList cutList;
 
-  // Don't do anything if drag and drop in same folder
-  if (QFileInfo(files.at(0).toLocalFile()).canonicalPath() == filePath(parent)) {
+  // Don't do anything if drag and drop in same folder. The folders are
+  // compared by their real paths (they can be reached through a symbolic
+  // link); the folder of a dragged link is where the link is, not where
+  // its target is.
+  const QString folder = QFileInfo(QFileInfo(files.at(0).toLocalFile()).absolutePath())
+          .canonicalFilePath();
+  if (!folder.isEmpty() && folder == QFileInfo(filePath(parent)).canonicalFilePath()) {
     return false;
   }
+
 
   // Holding ctrl is copy, holding shift is move, holding alt is ask
   Qt::KeyboardModifiers mods = QApplication::keyboardModifiers();

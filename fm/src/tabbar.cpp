@@ -139,7 +139,10 @@ void tabBar::dropEvent(QDropEvent *event)
         QStringList cutList;
 
         //don't do anything if you drag and drop in same folder
-        if(file.canonicalPath() == tabData(currentIndex()).toString())
+        //(real paths of the folders; the folder of a link is where the link is)
+        const QString folder = QFileInfo(file.absolutePath()).canonicalFilePath();
+        if(!folder.isEmpty() && folder == QFileInfo(tabData(currentIndex()).toString()).canonicalFilePath())
+
         {
             event->ignore();
             return;
