@@ -791,7 +791,12 @@ void MainWindow::listSelectionChanged(const QItemSelection selected, const QItem
         QFileInfo file(modelList->filePath(modelView->mapToSource(items.at(0))));
 
         name = file.fileName();
-        if (file.isSymLink()) { name = "Link --> " + file.symLinkTarget(); }
+        // the target as stored in the link (a relative one stays relative)
+        if (file.isSymLink()) {
+            name = tr("Link --> %1").arg(Common::linkTarget(file));
+            if (!file.exists()) { name += " " + tr("(broken link)"); }
+        }
+
 
         statusName->setText(name + "   ");
         statusSize->setText(QString("%1   ").arg(total));

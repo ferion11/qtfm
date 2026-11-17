@@ -1316,6 +1316,12 @@ QVariant myModel::data(const QModelIndex & index, int role) const {
           }
         }
         data = item->mMimeType;
+        // the type of a symbolic link is the link (mMimeType stays the type
+        // of the target, used for "Open with" and the custom actions)
+        if (item->fileInfo().isSymLink()) {
+          data = item->fileInfo().exists() ? tr("link to %1").arg(item->mMimeType)
+                                           : tr("broken link");
+        }
         break;
       case 3 :
         data = QLocale::system().toString(item->fileInfo().lastModified(),
@@ -1369,7 +1375,12 @@ QVariant myModel::data(const QModelIndex & index, int role) const {
     const QFileInfo info = item->fileInfo();
     QStringList tip;
     tip << item->fileName();
-    if (info.isSymLink()) { tip << tr("Link to: %1").arg(info.symLinkTarget()); }
+    if (info.isSymLink()) {
+      QString target = tr("Link to: %1").arg(Common::linkTarget(info));
+      if (!info.exists()) { target += " " + tr("(broken link)"); }
+      tip << target;
+    }
+
     if (!info.isDir()) { tip << tr("Size: %1").arg(Common::formatSize(Common::fileSize(info))); }
 
     const QString type = index.sibling(index.row(), 2).data(Qt::DisplayRole).toString();

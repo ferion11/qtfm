@@ -112,6 +112,8 @@ public:
     static QString getTempClipboardFile();
     static QString dragDropText(const QList<QUrl> &files, const QString &destination);
     static qint64 fileSize(const QFileInfo &info);
+    static QString linkTarget(const QFileInfo &info);
+
 };
 
 #endif // COMMON_H

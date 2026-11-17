@@ -23,6 +23,9 @@
 #include <QCryptographicHash>
 #include <QUrl>
 #include <QStandardPaths>
+#include <unistd.h>
+#include <limits.h>
+
 #include <QCoreApplication>
 #include <QFileInfo>
 
@@ -773,4 +776,20 @@ qint64 Common::fileSize(const QFileInfo &info)
         return 0;
     }
     return info.size();
+}
+
+/**
+ * @brief Target of a symbolic link exactly as stored in the link (a
+ * relative target stays relative), unlike QFileInfo::symLinkTarget(), which
+ * returns it made absolute. Empty when info is not a symbolic link.
+ */
+QString Common::linkTarget(const QFileInfo &info)
+{
+    if (!info.isSymLink()) { return QString(); }
+    QByteArray target(PATH_MAX + 1, Qt::Uninitialized);
+    const ssize_t len = ::readlink(QFile::encodeName(info.absoluteFilePath()).constData(),
+                                   target.data(), PATH_MAX);
+    if (len < 0) { return info.symLinkTarget(); }
+    target.truncate(len);
+    return QFile::decodeName(target);
 }
