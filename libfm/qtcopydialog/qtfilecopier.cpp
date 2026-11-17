@@ -563,6 +563,20 @@ struct FollowLinksNode : public ChainNode {
             const QByteArray source = QFile::encodeName(r.source);
             const QByteArray dest = QFile::encodeName(r.dest);
 
+            // The destination can be the very file or folder the link
+            // points to (the link copied or moved, under the same name, into
+            // the folder of its target). Replacing it would destroy the
+            // target and leave a link pointing to itself.
+            const QFileInfo existing(r.dest);
+            if (existing.exists() && !existing.isSymLink()) {
+                const QString target = fis.canonicalFilePath(); // empty when broken
+                if (!target.isEmpty() && target == existing.canonicalFilePath()) {
+                    setError(QtFileCopier::CannotCreateSymLink);
+                    return false;
+                }
+            }
+
+
             // This node ends the chain for links, so a move has to be
             // completed here: RenameNode and MoveNode are not reached.
             // On the same file system rename(2) moves the link itself.

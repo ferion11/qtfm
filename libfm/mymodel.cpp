@@ -23,6 +23,7 @@
 #include "emblemicon.h"
 #include <sys/inotify.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <sys/ioctl.h>
 #include <QApplication>
 #include <QMessageBox>
@@ -1524,8 +1525,18 @@ bool myModel::setData(const QModelIndex & index, const QVariant & value, int rol
     if (name.isEmpty() || name.contains(SEPARATOR) || name == "." || name == "..") { return false; }
     if (name == item->fileName()) { return true; }
 
-    //physically change the name on disk
-    bool ok = QFile::rename(item->absoluteFilePath(),item->parent()->absoluteFilePath() + SEPARATOR + name);
+    //physically change the name on disk. A symbolic link is renamed with
+    //rename(2): QFile::rename() refuses a broken link (its target does not
+    //exist, so to QFile the file does not exist).
+    const QString newPath = item->parent()->absoluteFilePath() + SEPARATOR + name;
+    bool ok;
+    if (item->fileInfo().isSymLink()) {
+        ok = !QFileInfo::exists(newPath) && !QFileInfo(newPath).isSymLink()
+                && ::rename(QFile::encodeName(item->absoluteFilePath()).constData(),
+                            QFile::encodeName(newPath).constData()) == 0;
+    } else {
+        ok = QFile::rename(item->absoluteFilePath(), newPath);
+    }
 
     //change the details in the modelItem
     if(ok) {
@@ -1549,7 +1560,20 @@ bool myModel::remove(const QModelIndex & theIndex)
 
     QString path = item->absoluteFilePath();
 
+    // A symbolic link is removed as the link itself: listing it would list
+    // the folder it points to, and remove the contents of that folder
+    if (QFileInfo(path).isSymLink()) {
+        const bool removed = QFile::remove(path);
+        if (removed) {
+            beginRemoveRows(index(item->parent()->absoluteFilePath()),item->childNumber(),item->childNumber());
+            item->parent()->removeChild(item);
+            endRemoveRows();
+        }
+        return removed;
+    }
+
     //physically remove files from disk
+
     QDirIterator it(path,QDir::AllEntries | QDir::System | QDir::NoDotAndDotDot | QDir::Hidden, QDirIterator::Subdirectories);
     QStringList children;
 
