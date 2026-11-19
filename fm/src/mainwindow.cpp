@@ -1468,6 +1468,8 @@ void MainWindow::contextMenuEvent(QContextMenuEvent * event) {
         popup->addAction(copyPathAct);
         popup->addSeparator();
         popup->addAction(renameAct);
+        if (curIndex.isSymLink()) { popup->addAction(editLinkAct); }
+        popup->addAction(newLinkAct);
         popup->addSeparator();
 
         // Add custom actions that are associated with all file types
@@ -1503,6 +1505,8 @@ void MainWindow::contextMenuEvent(QContextMenuEvent * event) {
         popup->addAction(copyPathAct);
         popup->addSeparator();
         popup->addAction(renameAct);
+        if (curIndex.isSymLink()) { popup->addAction(editLinkAct); }
+        popup->addAction(newLinkAct);
         popup->addSeparator();
 
         foreach (QMenu* parent, customActManager->getMenus()->values("*")) {
@@ -1539,8 +1543,10 @@ void MainWindow::contextMenuEvent(QContextMenuEvent * event) {
       popup->addSeparator();
       popup->addAction(newDirAct);
       popup->addAction(newFileAct);
+      popup->addAction(newLinkAct);
       popup->addSeparator();
       if (pasteAct->isEnabled()) {
+
         popup->addAction(pasteAct);
         popup->addSeparator();
       }

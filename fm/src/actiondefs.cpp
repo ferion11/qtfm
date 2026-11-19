@@ -92,6 +92,18 @@ void MainWindow::createActions() {
   newFileAct->setIcon(actionIcons->at(1));
   actionList->append(newFileAct);
 
+  newLinkAct = new QAction(tr("New symbolic link..."), this);
+  newLinkAct->setStatusTip(tr("Create a symbolic link in the current folder (to the selected item, if one is selected)"));
+  connect(newLinkAct, SIGNAL(triggered()), this, SLOT(newSymLink()));
+  newLinkAct->setIcon(QIcon::fromTheme("insert-link", QIcon::fromTheme("emblem-symbolic-link")));
+  actionList->append(newLinkAct);
+
+  editLinkAct = new QAction(tr("Edit symbolic link..."), this);
+  editLinkAct->setStatusTip(tr("Change the name and the target of the selected symbolic link"));
+  connect(editLinkAct, SIGNAL(triggered()), this, SLOT(editSymLink()));
+  editLinkAct->setIcon(QIcon::fromTheme("document-edit", QIcon::fromTheme("insert-link")));
+  actionList->append(editLinkAct);
+
   newWinAct = new QAction(tr("New window"), this);
   connect(newWinAct, SIGNAL(triggered()), this, SLOT(newWindow()));
   newWinAct->setIcon(actionIcons->at(28));
@@ -585,6 +597,7 @@ void MainWindow::createMenus() {
   QMenu *fileMenu = new QMenu(tr("File"));
   fileMenu->addAction(newDirAct);
   fileMenu->addAction(newFileAct);
+  fileMenu->addAction(newLinkAct);
   fileMenu->addSeparator();
   fileMenu->addAction(newWinAct);
   fileMenu->addAction(openTabAct);
@@ -603,6 +616,8 @@ void MainWindow::createMenus() {
   editMenu->addAction(invertSelAct);
   editMenu->addSeparator();
   editMenu->addAction(renameAct);
+  editMenu->addAction(editLinkAct);
+
   editMenu->addAction(trashAct);
   editMenu->addAction(deleteAct);
   editMenu->addSeparator();

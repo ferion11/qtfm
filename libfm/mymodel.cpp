@@ -629,7 +629,20 @@ void myModel::update()
 }
 
 //---------------------------------------------------------------------------------
+void myModel::refreshItem(const QString &path)
+{
+    myModelItem *item = rootItem->matchPath(path.split(SEPARATOR));
+    if (item == nullptr || item->parent() == nullptr) { return; }
+    item->refreshFileInfo(); // also forgets its type and permissions
+    icons->remove(item->absoluteFilePath());
+    const QModelIndex first = index(path);
+    if (!first.isValid()) { return; }
+    emit dataChanged(first, first.sibling(first.row(), columnCount(first.parent()) - 1));
+}
+
+//---------------------------------------------------------------------------------
 void myModel::refreshItems()
+
 {
     myModelItem *item = rootItem->matchPath(currentRootPath.split(SEPARATOR));
     if (item == nullptr) { return; }

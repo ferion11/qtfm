@@ -138,6 +138,8 @@ public slots:
     bool linkFiles(const QList<QUrl> &files, const QString &newPath);
     void newDir();
     void newFile();
+    void newSymLink();
+    void editSymLink();
     void pathEditChanged(QString);
     void terminalRun();
     void executeFile(QModelIndex, bool);
@@ -160,6 +162,8 @@ public slots:
     void showEditDialog();
     void renameFile();
     bool renameDialog(const QModelIndex &sourceIndex);
+    bool symLinkDialog(const QString &folder, const QString &linkPath,
+                       const QString &initialTarget, QString *createdPath);
     void selectListItem(const QModelIndex &sourceIndex);
     void actionMapper(QString);
     void folderPropertiesLauncher();
@@ -346,6 +350,9 @@ private:
     QAction *sortAscAct;
     QAction *newDirAct;
     QAction *newFileAct;
+    QAction *newLinkAct;
+    QAction *editLinkAct;
+
     QAction *cutAct;
     QAction *copyAct;
     QAction *copyPathAct;

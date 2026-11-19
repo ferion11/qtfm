@@ -49,6 +49,10 @@ public:
   void refresh();
   void refreshItems();
   void update();
+  // reads again the information of one entry (e.g. a link whose target
+  // was changed) and updates the views
+  void refreshItem(const QString &path);
+
   bool remove(const QModelIndex & index );
   bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row,
                     int column, const QModelIndex &parent);

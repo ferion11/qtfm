@@ -163,6 +163,7 @@ add_executable(
     fm/src/actiondefs.cpp
     fm/src/actiontriggers.cpp
     fm/src/panes.cpp
+    fm/src/symlinks.cpp
     share/${PROJECT_NAME}.qrc
 )
 target_link_libraries(
