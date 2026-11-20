@@ -391,7 +391,8 @@ void MainWindow::setSplitCount(int count)
 
 //---------------------------------------------------------------------------
 /**
- * @brief Places the panes: side by side, or two over two when there are four
+ * @brief Places the panes: two side by side; with three or four, two on
+ * top and the others below (one pane below takes the whole width)
  */
 void MainWindow::arrangePanes()
 {
@@ -399,7 +400,8 @@ void MainWindow::arrangePanes()
     int top = 0;
     int bottom = 0;
     for (int i = 0; i < count; ++i) {
-        const bool below = (count == 4 && i >= 2);
+        const bool below = (count >= 3 && i >= 2);
+
         // addWidget() moves a widget that is already in a splitter
         if (below) { paneBottom->addWidget(panes.at(i)->widget); ++bottom; }
         else { paneTop->addWidget(panes.at(i)->widget); ++top; }
