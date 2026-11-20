@@ -1466,6 +1466,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent * event) {
         popup->addAction(copyAct);
         popup->addAction(pasteAct);
         popup->addAction(copyPathAct);
+        popup->addMenu(checksumMenu);
         popup->addSeparator();
         popup->addAction(renameAct);
         if (curIndex.isSymLink()) { popup->addAction(editLinkAct); }
@@ -1473,6 +1474,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent * event) {
         popup->addSeparator();
 
         // Add custom actions that are associated with all file types
+
         foreach (QMenu* parent, customActManager->getMenus()->values("*")) {
           popup->addMenu(parent);
         }

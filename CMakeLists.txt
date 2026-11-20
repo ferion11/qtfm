@@ -164,6 +164,7 @@ add_executable(
     fm/src/actiontriggers.cpp
     fm/src/panes.cpp
     fm/src/symlinks.cpp
+    fm/src/checksums.cpp
     share/${PROJECT_NAME}.qrc
 )
 target_link_libraries(

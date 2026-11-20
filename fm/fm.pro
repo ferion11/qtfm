@@ -27,7 +27,8 @@ SOURCES += \
     src/actiondefs.cpp \
     src/actiontriggers.cpp \
     src/panes.cpp \
-    src/symlinks.cpp
+    src/symlinks.cpp \
+    src/checksums.cpp
 
 RESOURCES += $${top_srcdir}/share/$${TARGET}.qrc
 

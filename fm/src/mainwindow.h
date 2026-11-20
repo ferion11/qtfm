@@ -162,6 +162,7 @@ public slots:
     void showEditDialog();
     void renameFile();
     bool renameDialog(const QModelIndex &sourceIndex);
+    void checksumFiles(int algorithm);
     bool symLinkDialog(const QString &folder, const QString &linkPath,
                        const QString &initialTarget, QString *createdPath);
     void selectListItem(const QModelIndex &sourceIndex);
@@ -240,6 +241,9 @@ private:
     void writeSettings();
     void recurseFolder(QString path, QString parent, QStringList *);
     QMenu* createOpenWithMenu();
+    QMenu* createChecksumMenu();
+    QMenu *checksumMenu;        // "Checksum" submenu (checksums.cpp)
+
 
     // split view (panes.cpp)
     FilePane *createPane();

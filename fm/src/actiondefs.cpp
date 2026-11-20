@@ -612,6 +612,9 @@ void MainWindow::createMenus() {
   editMenu->addAction(copyAct);
   editMenu->addAction(pasteAct);
   editMenu->addAction(copyPathAct);
+  checksumMenu = createChecksumMenu();
+  editMenu->addMenu(checksumMenu);
+
   editMenu->addAction(selectAllAct);
   editMenu->addAction(invertSelAct);
   editMenu->addSeparator();
